@@ -1,0 +1,128 @@
+========================================================================
+COMANDOS PARA CONFIGURAR O RASPBERRY PI 5 (UBUNTU) — PROJETO CATRACA
+========================================================================
+Execute os comandos na ordem. Onde houver [ESCOLHA], use apenas UMA das
+opções apresentadas (A ou B), não as duas.
+
+
+------------------------------------------------------------------------
+1. HABILITAR SPI E I2C
+------------------------------------------------------------------------
+
+[ESCOLHA A] — Editando o arquivo de configuração manualmente:
+
+    ls /boot/firmware/config.txt
+    sudo nano /boot/firmware/config.txt
+
+    # Dentro do editor, vá até a última linha e adicione:
+    dtparam=spi=on
+    dtparam=i2c_arm=on
+
+    # Salvar e sair do nano: Ctrl+O, Enter, Ctrl+X
+
+    sudo reboot
+
+    # Depois de reiniciar, confirme que funcionou:
+    ls /dev/spidev*
+    ls /dev/i2c*
+
+
+[ESCOLHA B] — Usando o raspi-config (alternativa via menu):
+
+    sudo apt update
+    sudo apt install -y raspi-config
+    sudo raspi-config
+
+    # Dentro do menu que abrir:
+    #   1. Selecione "Interface Options"
+    #   2. Selecione "SPI"       -> escolha "Yes" para habilitar
+    #   3. Volte, selecione "Interface Options" de novo
+    #   4. Selecione "I2C"       -> escolha "Yes" para habilitar
+    #   5. Selecione "Finish"
+    #   6. Quando perguntar se quer reiniciar, escolha "Yes"
+
+    # Depois de reiniciar, confirme que funcionou:
+    ls /dev/spidev*
+    ls /dev/i2c*
+
+
+------------------------------------------------------------------------
+2. PACOTES DO SISTEMA (via apt)
+------------------------------------------------------------------------
+
+    sudo apt update
+    sudo apt install -y python3-pip python3-venv python3-opencv \
+        i2c-tools python3-smbus libatlas-base-dev
+
+
+------------------------------------------------------------------------
+3. PERMISSÕES DO USUÁRIO
+------------------------------------------------------------------------
+
+    sudo usermod -aG gpio,i2c,spi,video,dialout $USER
+
+    # IMPORTANTE: faça logout e login de novo (ou reinicie) para
+    # as permissões terem efeito:
+    sudo reboot
+
+
+------------------------------------------------------------------------
+4. AMBIENTE VIRTUAL PYTHON + DEPENDÊNCIAS
+------------------------------------------------------------------------
+
+    # Entre na pasta do projeto (ajuste o caminho conforme onde você
+    # copiou os arquivos: config.py, face_utils.py, embedding.py, etc.)
+    cd caminho/para/reconhecimento_facial
+
+    python3 -m venv venv --system-site-packages
+    source venv/bin/activate
+
+    pip install mediapipe numpy gpiozero rpi-lgpio mfrc522 smbus2
+
+    # Se o mediapipe travar tentando compilar do zero, tente uma
+    # versão específica que costuma ter wheel pronta para ARM64:
+    # pip install mediapipe==0.10.9
+
+
+------------------------------------------------------------------------
+5. BAIXAR O MODELO DO MEDIAPIPE FACE LANDMARKER
+------------------------------------------------------------------------
+
+    # Ainda dentro da pasta do projeto, com o venv ativado:
+    wget -O face_landmarker.task \
+      https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task
+
+
+------------------------------------------------------------------------
+6. TESTES ANTES DE RODAR O FLUXO COMPLETO
+------------------------------------------------------------------------
+
+    # 6.1 - Testar a webcam:
+    python3 -c "import cv2; cap = cv2.VideoCapture(0); print(cap.read()[0])"
+    # Deve imprimir: True
+    # Se a webcam não for o índice 0, rode: ls /dev/video*
+    # e ajuste CAMERA_INDEX em config.py
+
+    # 6.2 - Testar o barramento I2C (deve listar o endereço do PCF8574T):
+    i2cdetect -y 1
+
+    # 6.3 - Testar o SPI/RFID (depois de conectar o RC522):
+    python3 -c "from mfrc522 import SimpleMFRC522; print('mfrc522 OK')"
+
+
+------------------------------------------------------------------------
+7. RODAR O PROTÓTIPO
+------------------------------------------------------------------------
+
+    # Sempre com o venv ativado (source venv/bin/activate)
+
+    # Cadastrar um usuário:
+    python3 registro.py "nome_do_usuario"
+
+    # Rodar a catraca (reconhecimento + destravamento):
+    python3 destravamento.py
+
+
+========================================================================
+FIM
+========================================================================
